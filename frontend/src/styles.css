@@ -264,6 +264,31 @@ button:disabled {
   gap: 8px;
 }
 
+.beginner-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.beginner-hints {
+  font-size: 14px;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.beginner-changes ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.beginner-changes li {
+  margin-bottom: 6px;
+}
+
 .import-controls,
 .editor-form,
 .editor-variants {
@@ -283,4 +308,3 @@ button:disabled {
 .chord-preview img {
   max-width: 240px;
 }
-

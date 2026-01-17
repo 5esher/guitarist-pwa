@@ -17,6 +17,7 @@ import {
 } from "../services/favorites/favoritesService";
 import { useMetronome } from "../services/metronome/useMetronome";
 import { useAutoScroll } from "../services/autoscroll/useAutoScroll";
+import { buildBeginnerPlan } from "../services/beginner/beginnerMode";
 
 const SongPage = () => {
   const { id } = useParams();
@@ -26,6 +27,7 @@ const SongPage = () => {
   const [selectedChord, setSelectedChord] = useState<string | null>(null);
   const [transposeHistory, setTransposeHistory] = useState<number[]>([0]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [beginnerMode, setBeginnerMode] = useState(false);
   const online = useOnlineStatus();
   const [favorites, setFavorites] = useState(loadLocalFavorites());
   const metronome = useMetronome(song?.bpm ?? 120);
@@ -69,19 +71,29 @@ const SongPage = () => {
     load();
   }, [id]);
 
+  const beginnerPlan = useMemo(() => {
+    if (!song) {
+      return null;
+    }
+    return buildBeginnerPlan(song.textWithChords);
+  }, [song]);
+
   const transposedText = useMemo(() => {
     if (!song) {
       return "";
     }
+    if (beginnerMode && beginnerPlan) {
+      return beginnerPlan.simplifiedText;
+    }
     return transposeTextWithChords(song.textWithChords, semitones);
-  }, [song, semitones]);
+  }, [song, semitones, beginnerMode, beginnerPlan]);
 
   const chords = useMemo(() => {
     if (!song) {
       return [];
     }
-    return extractChordsFromText(song.textWithChords);
-  }, [song]);
+    return extractChordsFromText(transposedText);
+  }, [song, transposedText]);
 
   const parsedLines = useMemo(() => parseSongText(transposedText).lines, [transposedText]);
 
@@ -170,24 +182,26 @@ const SongPage = () => {
       ) : (
         <div className="song-content">
           <div className="transpose-controls">
-            <span>Транспозиция: {semitones} полутонов</span>
+            <span>
+              Транспозиция: {beginnerMode && beginnerPlan ? beginnerPlan.transpose : semitones} полутонов
+            </span>
             <div className="buttons">
-              <button type="button" onClick={() => handleTranspose(-1)}>
+              <button type="button" onClick={() => handleTranspose(-1)} disabled={beginnerMode}>
                 -
               </button>
-              <button type="button" onClick={handleReset}>
+              <button type="button" onClick={handleReset} disabled={beginnerMode}>
                 Сброс
               </button>
-              <button type="button" onClick={() => handleTranspose(1)}>
+              <button type="button" onClick={() => handleTranspose(1)} disabled={beginnerMode}>
                 +
               </button>
-              <button type="button" onClick={undoTranspose} disabled={historyIndex === 0}>
+              <button type="button" onClick={undoTranspose} disabled={historyIndex === 0 || beginnerMode}>
                 Undo
               </button>
               <button
                 type="button"
                 onClick={redoTranspose}
-                disabled={historyIndex >= transposeHistory.length - 1}
+                disabled={historyIndex >= transposeHistory.length - 1 || beginnerMode}
               >
                 Redo
               </button>
@@ -195,6 +209,46 @@ const SongPage = () => {
           </div>
 
           <div className="utility-panel">
+            <div className="utility-block">
+              <label className="beginner-toggle">
+                Режим новичка
+                <input
+                  type="checkbox"
+                  checked={beginnerMode}
+                  onChange={(event) => setBeginnerMode(event.target.checked)}
+                />
+              </label>
+              {beginnerMode && beginnerPlan ? (
+                <div className="beginner-hints">
+                  <p>
+                    Подобран упрощённый набор аккордов для этой песни.
+                  </p>
+                  {beginnerPlan.transpose !== 0 && (
+                    <p>
+                      Чтобы сохранить оригинальную тональность, установите каподастр
+                      на лад {Math.abs(beginnerPlan.transpose)}.
+                    </p>
+                  )}
+                  {beginnerPlan.changes.length > 0 ? (
+                    <div className="beginner-changes">
+                      <h4>Изменения</h4>
+                      <ul>
+                        {beginnerPlan.changes.map((change) => (
+                          <li key={`${change.from}-${change.to}`}>
+                            <strong>{change.from}</strong> → <strong>{change.to}</strong> ×{change.count}
+                            <span> ({change.reason})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p>Все аккорды уже подходят для новичка.</p>
+                  )}
+                </div>
+              ) : (
+                <p>Включите, чтобы автоматически упростить аккорды.</p>
+              )}
+            </div>
             <div className="utility-block">
               <label>
                 Автоскролл
