@@ -1,0 +1,16 @@
+{
+  "name": "Guitarist PWA",
+  "short_name": "Guitarist",
+  "description": "Легковесное PWA приложение для гитаристов.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
