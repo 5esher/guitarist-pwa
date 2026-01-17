@@ -7,13 +7,17 @@
     "dev": "node --loader ts-node/esm src/main.ts",
     "build": "tsc",
     "start": "node dist/main.js",
+    "seed": "node --loader ts-node/esm src/seed.ts",
     "test": "node -e \"console.log('No backend tests yet')\""
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/node": "^22.5.0",
+    "@types/pg": "^8.11.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3"
   }
