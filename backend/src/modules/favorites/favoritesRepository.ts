@@ -9,9 +9,11 @@ export const getFavorites = async (clientId: string) => {
     "SELECT chord_name FROM favorite_chords WHERE client_id = $1",
     [clientId]
   );
+  const songRows = songs.rows as { song_id: string }[];
+  const chordRows = chords.rows as { chord_name: string }[];
   return {
-    songs: songs.rows.map((row) => row.song_id as string),
-    chords: chords.rows.map((row) => row.chord_name as string)
+    songs: songRows.map((row) => row.song_id),
+    chords: chordRows.map((row) => row.chord_name)
   };
 };
 

@@ -23,10 +23,10 @@ const seed = async () => {
 
   for (const song of seedSongs) {
     const result = await pool.query(
-      `INSERT INTO songs (title, author, original_key, bpm, text_with_chords)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO songs (title, author, original_key, bpm, text_tabs, strum_pattern, text_with_chords)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
-      [song.title, song.author, song.originalKey, song.bpm, song.textWithChords]
+      [song.title, song.author, song.originalKey, song.bpm, null, null, song.textWithChords]
     );
     const songId = result.rows[0].id as string;
     const positions = extractChordPositions(song.textWithChords);

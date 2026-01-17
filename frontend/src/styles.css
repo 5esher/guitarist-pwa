@@ -14,6 +14,93 @@ body {
   background-color: #f9fafb;
 }
 
+body.night-mode {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+body.night-mode .song-card,
+body.night-mode .song-text,
+body.night-mode .utility-block,
+body.night-mode .chord-card,
+body.night-mode .comment-card,
+body.night-mode .chord-preview {
+  background: #111827;
+  color: #f8fafc;
+  box-shadow: none;
+}
+
+body.night-mode .meta,
+body.night-mode .status,
+body.night-mode .song-link,
+body.night-mode .comment-meta {
+  color: #cbd5f5;
+}
+
+body.night-mode .app-header {
+  background: #0f172a;
+  border-bottom-color: #1e293b;
+}
+
+body.night-mode .song-tabs {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+body.large-text {
+  font-size: 18px;
+}
+
+body.distraction-free .app-header,
+body.distraction-free .utility-panel,
+body.distraction-free .chord-gallery,
+body.distraction-free .comments-panel,
+body.distraction-free .page-header {
+  display: none;
+}
+
+body.distraction-free .song-text {
+  font-size: 22px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-brand {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.app-nav {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-toggles {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.app-toggles label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -161,6 +248,52 @@ button:disabled {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
+.song-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.song-columns.two-column {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.song-columns.two-column .song-text,
+.song-columns.two-column .song-tabs {
+  flex: 1;
+}
+
+.song-tabs {
+  flex: 1;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 12px;
+  overflow: auto;
+  min-height: 240px;
+  font-size: 14px;
+}
+
+.song-line-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.strum-line {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  padding-left: 4px;
+}
+
+.strum-arrow {
+  font-weight: 700;
+}
+
 .song-line {
   display: flex;
   flex-wrap: wrap;
@@ -278,6 +411,83 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.comments-panel {
+  margin-top: 24px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.comment-textarea {
+  min-height: 100px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+}
+
+.comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-card {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.comment-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.comment-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setlist-create,
+.setlist-edit,
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.setlist-add {
+  display: grid;
+  gap: 12px;
+}
+
+.setlist-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .beginner-changes ul {

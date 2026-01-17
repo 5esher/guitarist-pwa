@@ -107,12 +107,12 @@ const simplifyText = (text: string): { text: string; changes: BeginnerPlan["chan
   return { text: simplifiedText, changes: Array.from(changeMap.values()) };
 };
 
-const scoreTransposition = (text: string, semitones: number): number => {
+const scoreTransposition = (text: string, semitones: number, simplify: boolean): number => {
   const transposed = transposeTextWithChords(text, semitones);
   const chords = extractChordsFromText(transposed);
   return chords.reduce((score, chord) => {
-    const simplified = simplifyChord(chord).simplified;
-    return score + difficultyScore(simplified);
+    const evaluated = simplify ? simplifyChord(chord).simplified : chord;
+    return score + difficultyScore(evaluated);
   }, 0);
 };
 
@@ -121,7 +121,7 @@ export const buildBeginnerPlan = (text: string): BeginnerPlan => {
   let bestScore = Number.POSITIVE_INFINITY;
 
   for (let semitones = -6; semitones <= 6; semitones += 1) {
-    const score = scoreTransposition(text, semitones);
+    const score = scoreTransposition(text, semitones, true);
     if (score < bestScore) {
       bestScore = score;
       bestTranspose = semitones;
@@ -137,5 +137,23 @@ export const buildBeginnerPlan = (text: string): BeginnerPlan => {
     simplifiedText,
     changes,
     capoFret
+  };
+};
+
+export const suggestCapoForText = (text: string) => {
+  let bestTranspose = 0;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let semitones = -6; semitones <= 6; semitones += 1) {
+    const score = scoreTransposition(text, semitones, false);
+    if (score < bestScore) {
+      bestScore = score;
+      bestTranspose = semitones;
+    }
+  }
+
+  return {
+    transpose: bestTranspose,
+    capoFret: bestTranspose < 0 ? Math.abs(bestTranspose) : null
   };
 };

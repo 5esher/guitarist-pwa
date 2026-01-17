@@ -3,5 +3,7 @@ export type CreateSongDto = {
   author: string;
   originalKey: string;
   bpm?: number;
+  textTabs?: string;
+  strumPattern?: string;
   textWithChords: string;
 };

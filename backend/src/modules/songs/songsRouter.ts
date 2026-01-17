@@ -16,7 +16,9 @@ const isCreateSongDto = (payload: unknown): payload is CreateSongDto => {
     typeof record.author === "string" &&
     typeof record.originalKey === "string" &&
     typeof record.textWithChords === "string" &&
-    (record.bpm === undefined || typeof record.bpm === "number")
+    (record.bpm === undefined || typeof record.bpm === "number") &&
+    (record.textTabs === undefined || typeof record.textTabs === "string") &&
+    (record.strumPattern === undefined || typeof record.strumPattern === "string")
   );
 };
 

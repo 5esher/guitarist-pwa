@@ -2,6 +2,9 @@ import express from "express";
 import songsRouter from "./modules/songs/songsRouter";
 import chordsRouter from "./modules/chords/chordsRouter";
 import favoritesRouter from "./modules/favorites/favoritesRouter";
+import profilesRouter from "./modules/profiles/profilesRouter";
+import setlistsRouter from "./modules/setlists/setlistsRouter";
+import commentsRouter from "./modules/comments/commentsRouter";
 import { config } from "./config";
 import { initDb } from "./db";
 
@@ -26,6 +29,9 @@ app.get("/health", (_req, res) => {
 app.use("/songs", songsRouter);
 app.use("/chords", chordsRouter);
 app.use("/favorites", favoritesRouter);
+app.use("/profiles", profilesRouter);
+app.use("/setlists", setlistsRouter);
+app.use("/comments", commentsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

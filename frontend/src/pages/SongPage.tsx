@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fetchSongById } from "../services/api/songsApi";
 import { cacheSong, getCachedSongById } from "../services/offline/songCache";
-import { Song } from "../services/types";
+import { Setlist, Song, SongComment } from "../services/types";
 import { transposeTextWithChords } from "../services/transposition/transposeTextWithChords";
 import { extractChordsFromText } from "../services/parsing/extractChordsFromText";
 import { parseSongText } from "../services/parsing/parseSongText";
@@ -17,10 +17,14 @@ import {
 } from "../services/favorites/favoritesService";
 import { useMetronome } from "../services/metronome/useMetronome";
 import { useAutoScroll } from "../services/autoscroll/useAutoScroll";
-import { buildBeginnerPlan } from "../services/beginner/beginnerMode";
+import { buildBeginnerPlan, suggestCapoForText } from "../services/beginner/beginnerMode";
+import { fetchSetlistById } from "../services/api/setlistsApi";
+import { addCommentVersion, createComment, fetchComments, voteComment } from "../services/api/commentsApi";
 
 const SongPage = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [song, setSong] = useState<Song | null>(null);
   const [semitones, setSemitones] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,10 +32,24 @@ const SongPage = () => {
   const [transposeHistory, setTransposeHistory] = useState<number[]>([0]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [beginnerMode, setBeginnerMode] = useState(false);
+  const [showTabs, setShowTabs] = useState(true);
+  const [distractionFree, setDistractionFree] = useState(false);
+  const [setlist, setSetlist] = useState<Setlist | null>(null);
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [comments, setComments] = useState<SongComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   const online = useOnlineStatus();
   const [favorites, setFavorites] = useState(loadLocalFavorites());
   const metronome = useMetronome(song?.bpm ?? 120);
   const autoScroll = useAutoScroll();
+  const searchParams = new URLSearchParams(location.search);
+  const setlistId = searchParams.get("setlistId");
+  const setlistIndex = Number(searchParams.get("index") ?? "0");
+  const safeSetlistIndex = Number.isNaN(setlistIndex) ? 0 : setlistIndex;
+  const autoParam = searchParams.get("auto") === "1";
 
   useEffect(() => {
     const loadFavorites = async () => {
@@ -71,11 +89,77 @@ const SongPage = () => {
     load();
   }, [id]);
 
+  useEffect(() => {
+    setAutoAdvanceEnabled(autoParam);
+  }, [autoParam]);
+
+  useEffect(() => {
+    if (!setlistId) {
+      setSetlist(null);
+      return;
+    }
+    const loadSetlist = async () => {
+      try {
+        const data = await fetchSetlistById(setlistId);
+        setSetlist(data);
+      } catch (_error) {
+        setSetlist(null);
+      }
+    };
+    loadSetlist();
+  }, [setlistId]);
+
+  useEffect(() => {
+    if (!song) {
+      return;
+    }
+    setShowTabs(Boolean(song.textTabs));
+  }, [song]);
+
+  useEffect(() => {
+    document.body.classList.toggle("distraction-free", distractionFree);
+    return () => {
+      document.body.classList.remove("distraction-free");
+    };
+  }, [distractionFree]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (distractionFree && root.requestFullscreen) {
+      root.requestFullscreen().catch(() => undefined);
+    }
+    if (!distractionFree && document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+  }, [distractionFree]);
+
+  useEffect(() => {
+    const loadComments = async () => {
+      if (!song) {
+        return;
+      }
+      try {
+        const data = await fetchComments(song.id);
+        setComments(data);
+      } catch (_error) {
+        setComments([]);
+      }
+    };
+    loadComments();
+  }, [song]);
+
   const beginnerPlan = useMemo(() => {
     if (!song) {
       return null;
     }
     return buildBeginnerPlan(song.textWithChords);
+  }, [song]);
+
+  const smartCapo = useMemo(() => {
+    if (!song) {
+      return null;
+    }
+    return suggestCapoForText(song.textWithChords);
   }, [song]);
 
   const transposedText = useMemo(() => {
@@ -96,6 +180,36 @@ const SongPage = () => {
   }, [song, transposedText]);
 
   const parsedLines = useMemo(() => parseSongText(transposedText).lines, [transposedText]);
+
+  const orderedSetlistItems = useMemo(() => {
+    if (!setlist) {
+      return [];
+    }
+    return [...setlist.items].sort((a, b) => a.position - b.position);
+  }, [setlist]);
+
+  const currentSetlistItem = orderedSetlistItems[safeSetlistIndex];
+
+  useEffect(() => {
+    if (!currentSetlistItem || !autoAdvanceEnabled || !setlistId) {
+      setRemainingSeconds(null);
+      return;
+    }
+    setRemainingSeconds(currentSetlistItem.durationSeconds);
+    const interval = window.setInterval(() => {
+      setRemainingSeconds((prev) => (prev === null ? null : Math.max(prev - 1, 0)));
+    }, 1000);
+    const timeout = window.setTimeout(() => {
+      const nextIndex = safeSetlistIndex + 1;
+      if (orderedSetlistItems[nextIndex]) {
+        navigate(`/songs/${orderedSetlistItems[nextIndex].songId}?setlistId=${setlistId}&index=${nextIndex}&auto=1`);
+      }
+    }, currentSetlistItem.durationSeconds * 1000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [autoAdvanceEnabled, currentSetlistItem, navigate, orderedSetlistItems, setlistId, safeSetlistIndex]);
 
   const handleTranspose = (value: number) => {
     const next = semitones + value;
@@ -146,6 +260,73 @@ const SongPage = () => {
 
   const isFavorite = song ? favorites.songs.includes(song.id) : false;
 
+  const patternTokens = useMemo(() => {
+    const pattern = song?.strumPattern?.trim();
+    const tokens = pattern ? pattern.split(/\s+/).filter(Boolean) : ["↓", "↑"];
+    return tokens.length > 0 ? tokens : ["↓", "↑"];
+  }, [song]);
+
+  const renderStrumLine = (lineIndex: number, chordsOnLine: string[]) => {
+    if (chordsOnLine.length === 0) {
+      return null;
+    }
+    return (
+      <div className="strum-line" key={`strum-${lineIndex}`}>
+        {chordsOnLine.map((_, index) => (
+          <span key={`strum-${lineIndex}-${index}`} className="strum-arrow">
+            {patternTokens[index % patternTokens.length]}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const handleCreateComment = async () => {
+    if (!song || !commentDraft.trim()) {
+      return;
+    }
+    await createComment(song.id, commentDraft.trim());
+    setCommentDraft("");
+    const data = await fetchComments(song.id);
+    setComments(data);
+  };
+
+  const handleSaveCommentVersion = async (commentId: string) => {
+    if (!editDraft.trim()) {
+      return;
+    }
+    await addCommentVersion(commentId, editDraft.trim());
+    setEditingCommentId(null);
+    setEditDraft("");
+    if (song) {
+      const data = await fetchComments(song.id);
+      setComments(data);
+    }
+  };
+
+  const handleVote = async (commentId: string, vote: number) => {
+    await voteComment(commentId, vote);
+    if (song) {
+      const data = await fetchComments(song.id);
+      setComments(data);
+    }
+  };
+
+  const goToSetlistIndex = (index: number) => {
+    if (!setlistId) {
+      return;
+    }
+    const target = orderedSetlistItems[index];
+    if (!target) {
+      return;
+    }
+    navigate(`/songs/${target.songId}?setlistId=${setlistId}&index=${index}&auto=${autoAdvanceEnabled ? 1 : 0}`);
+  };
+
+  const handleNextSetlist = () => {
+    goToSetlistIndex(safeSetlistIndex + 1);
+  };
+
   return (
     <section className="page">
       <header className="page-header">
@@ -171,6 +352,12 @@ const SongPage = () => {
               {song.author} · Тональность: {song.originalKey}
               {song.bpm ? ` · ${song.bpm} BPM` : ""}
             </p>
+            {setlist && currentSetlistItem && (
+              <p className="meta">
+                Сет-лист: {setlist.title} · Песня {safeSetlistIndex + 1} из {orderedSetlistItems.length}
+                {remainingSeconds !== null ? ` · До автоперехода: ${remainingSeconds}с` : ""}
+              </p>
+            )}
           </div>
         )}
       </header>
@@ -248,6 +435,48 @@ const SongPage = () => {
               ) : (
                 <p>Включите, чтобы автоматически упростить аккорды.</p>
               )}
+              {!beginnerMode && smartCapo?.capoFret ? (
+                <p>Совет по капо: лад {smartCapo.capoFret} для более удобных аккордов.</p>
+              ) : null}
+            </div>
+            <div className="utility-block">
+              <label>
+                Двухколоночный режим (текст + табы)
+                <input
+                  type="checkbox"
+                  checked={showTabs}
+                  onChange={(event) => setShowTabs(event.target.checked)}
+                  disabled={!song?.textTabs}
+                />
+              </label>
+              {song?.textTabs ? (
+                <p>Табы будут показаны справа от текста.</p>
+              ) : (
+                <p>Для этой песни табы не загружены.</p>
+              )}
+              <label>
+                Режим без отвлечений
+                <input
+                  type="checkbox"
+                  checked={distractionFree}
+                  onChange={(event) => setDistractionFree(event.target.checked)}
+                />
+              </label>
+              {setlist && (
+                <label>
+                  Автопереход по сет-листу
+                  <input
+                    type="checkbox"
+                    checked={autoAdvanceEnabled}
+                    onChange={(event) => setAutoAdvanceEnabled(event.target.checked)}
+                  />
+                </label>
+              )}
+              {setlist && currentSetlistItem && (
+                <button type="button" onClick={handleNextSetlist} disabled={!orderedSetlistItems[safeSetlistIndex + 1]}>
+                  Следующая песня
+                </button>
+              )}
             </div>
             <div className="utility-block">
               <label>
@@ -294,28 +523,41 @@ const SongPage = () => {
             </div>
           )}
 
-          <div className="song-text">
-            {parsedLines.map((line, lineIndex) => (
-              <div key={`line-${lineIndex}`} className="song-line">
-                {line.segments.map((segment, segmentIndex) => {
-                  if (segment.type === "chord") {
-                    return (
-                      <button
-                        key={`seg-${lineIndex}-${segmentIndex}`}
-                        type="button"
-                        className="chord-chip"
-                        onClick={() => setSelectedChord(segment.value)}
-                      >
-                        {segment.value}
-                      </button>
-                    );
-                  }
-                  return (
-                    <span key={`seg-${lineIndex}-${segmentIndex}`}>{segment.value}</span>
-                  );
-                })}
-              </div>
-            ))}
+          <div className={showTabs && song?.textTabs ? "song-columns two-column" : "song-columns"}>
+            <div className="song-text">
+              {parsedLines.map((line, lineIndex) => {
+                const chordsOnLine = line.segments
+                  .filter((segment) => segment.type === "chord")
+                  .map((segment) => segment.value);
+                return (
+                  <div key={`line-${lineIndex}`} className="song-line-group">
+                    {renderStrumLine(lineIndex, chordsOnLine)}
+                    <div className="song-line">
+                      {line.segments.map((segment, segmentIndex) => {
+                        if (segment.type === "chord") {
+                          return (
+                            <button
+                              key={`seg-${lineIndex}-${segmentIndex}`}
+                              type="button"
+                              className="chord-chip"
+                              onClick={() => setSelectedChord(segment.value)}
+                            >
+                              {segment.value}
+                            </button>
+                          );
+                        }
+                        return (
+                          <span key={`seg-${lineIndex}-${segmentIndex}`}>{segment.value}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {showTabs && song?.textTabs && (
+              <pre className="song-tabs">{song.textTabs}</pre>
+            )}
           </div>
 
           {chords.length > 0 && (
@@ -335,6 +577,69 @@ const SongPage = () => {
               </div>
             </div>
           )}
+
+          <div className="comments-panel">
+            <h2>Сообщество и комментарии</h2>
+            <div className="comment-form">
+              <textarea
+                className="comment-textarea"
+                placeholder="Поделитесь версией или советом..."
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
+              />
+              <button type="button" onClick={handleCreateComment}>
+                Опубликовать
+              </button>
+            </div>
+            {comments.length === 0 ? (
+              <p>Пока нет комментариев. Будьте первым!</p>
+            ) : (
+              <ul className="comment-list">
+                {comments.map((comment) => (
+                  <li key={comment.id} className="comment-card">
+                    <div className="comment-meta">
+                      <span>Пользователь: {comment.clientId.slice(0, 8)}</span>
+                      <span>Голоса: {comment.votes}</span>
+                    </div>
+                    <p>{comment.body}</p>
+                    <div className="comment-actions">
+                      <button type="button" onClick={() => handleVote(comment.id, 1)}>👍</button>
+                      <button type="button" onClick={() => handleVote(comment.id, -1)}>👎</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingCommentId(comment.id);
+                          setEditDraft(comment.body);
+                        }}
+                      >
+                        Новая версия
+                      </button>
+                    </div>
+                    {editingCommentId === comment.id && (
+                      <div className="comment-edit">
+                        <textarea
+                          className="comment-textarea"
+                          value={editDraft}
+                          onChange={(event) => setEditDraft(event.target.value)}
+                        />
+                        <button type="button" onClick={() => handleSaveCommentVersion(comment.id)}>
+                          Сохранить
+                        </button>
+                      </div>
+                    )}
+                    <details>
+                      <summary>История версий ({comment.versions.length})</summary>
+                      <ul>
+                        {comment.versions.map((version) => (
+                          <li key={version.id}>{version.body}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </section>

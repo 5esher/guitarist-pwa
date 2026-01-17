@@ -4,5 +4,7 @@ export type Song = {
   author: string;
   originalKey: string;
   bpm?: number | null;
+  textTabs?: string | null;
+  strumPattern?: string | null;
   textWithChords: string;
 };
